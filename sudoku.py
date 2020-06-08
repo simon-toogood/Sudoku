@@ -38,6 +38,8 @@ class Cell(tk.Canvas):
         self._refresh()
 
     def add_corner_note(self, num):
+        if num not in "123456789":
+            return
         if num in self.cornernotes:
             self.remove_corner_note(num)
         elif len(self.cornernotes) == 8:
@@ -51,6 +53,8 @@ class Cell(tk.Canvas):
         self._refresh()
 
     def add_centre_note(self, num):
+        if num not in "123456789":
+            return
         if num in self.centrenotes:
             self.remove_centre_note(num)
         else:
@@ -69,12 +73,21 @@ class Cell(tk.Canvas):
         self._refresh()
 
     def set_colour(self, colour):
+        if colour not in COLOURS:
+            return
         self.colour = colour
-        self.config(bg=self.colour)
+        self._refresh()
 
     def set_mode(self, mode):
         self.mode = mode
         self._set_binds()
+
+    @staticmethod
+    def _extract_colour(event):
+        if event.char not in "123456789":
+            return
+        else:
+            return COLOURS[int(event.char) - 1]
 
     def _refresh(self):
         self.delete(tk.ALL)
@@ -102,7 +115,7 @@ class Cell(tk.Canvas):
         elif self.mode == CENTRE:
             self.bind("<Key>", lambda e: self.add_centre_note(e.char))
         elif self.mode == COLOUR:
-            self.bind("<Key>", lambda e: self.set_colour(COLOURS[int(e.char) - 1]))
+            self.bind("<Key>", lambda e: self.set_colour(self._extract_colour(e)))
 
 
 class Sudoku(tk.Frame):
@@ -134,6 +147,16 @@ class Sudoku(tk.Frame):
             m.grid(row=i, column=2)
         self.master.bind("<Key>", self.move_focus)
 
+    def get_row(self, row):
+        return self.cells[row]
+
+    def get_column(self, col):
+        return [row[col] for row in self.cells]
+
+    def get_box(self, box):
+        # what's a good way of doing this then?
+        pass
+
     def change_mode(self, mode):
         for row in self.cells:
             for cell in row:
@@ -143,13 +166,13 @@ class Sudoku(tk.Frame):
         pos = self.focus_get().position
         key = event.keysym
         if key == "Up":
-            pos = pos[0] - 1, pos[1]
+            pos = (pos[0] - 1) % 9, pos[1]
         elif key == "Down":
-            pos = pos[0] + 1, pos[1]
+            pos = (pos[0] + 1) % 9, pos[1]
         elif key == "Left":
-            pos = pos[0], pos[1] - 1
+            pos = pos[0], (pos[1] - 1) % 9
         elif key == "Right":
-            pos = pos[0], pos[1] + 1
+            pos = pos[0], (pos[1] + 1) % 9
         self.cells[pos[0]][pos[1]].focus_set()
 
 
