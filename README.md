@@ -3,11 +3,11 @@ This app creates a Sudoku widget in tkinter that supports Snyder notation (corne
 
 ### TO-DO LIST (priority order):
 - ~~Add checking for duplicate digits in rows, columns and boxes~~
+- Add a sudoku building mode
 - Add support for thermo sudokus
 - Add checking support for thermo sudokus
 - Add support for sandwich sudokus
 - Add checking support for sandwich sudokus
-- Add a sudoku building mode
 
 ### DEPENDEDCIES:
 - Python 3.x
