@@ -1,6 +1,6 @@
 import tkinter as tk
 import functools
-import random
+from helpers import *
 
 
 WHITE = "#ffffff"
@@ -216,6 +216,9 @@ class Sudoku(tk.Frame):
                     c.fixed = True
                     c._refresh()
 
+    def export(self):
+        return [list(map(lambda c: c.number, r)) for r in self.cells]
+
     def get_row(self, row):
         """Get row n of the grid. Note that it starts at 0 on the left"""
         return self.cells[row]
@@ -265,37 +268,3 @@ class Sudoku(tk.Frame):
             pos = pos[0], (pos[1] + 1) % 9
             print(self.get_box(0))
         self.cells[pos[0]][pos[1]].focus_set()
-
-
-def average_colours(c1, c2):
-    """Takes the geometric average of two hex colours."""
-    def hextorgb(h):
-        return tuple(int(h[i:i + 2], 16) / 255. for i in (1, 3, 5))
-    def rgbtohex(rgb):
-        return f'#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}'
-    rgb = (hextorgb(c1), hextorgb(c2))
-    return rgbtohex([sum(y) / len(y) for y in zip(*rgb)])
-
-
-def check_duplicates(lst):
-    """Check for duplicate values in a list of Cells or integers. Returns a list of duplicates values as integers,
-    or an empty list if there are none"""
-    lst.sort()
-    out = []
-    prev = None
-    for item in lst:
-        if item == prev:
-            if item not in out:
-                out.append(item)
-        else:
-            prev = item
-    return [a.number for a in out]
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    s = Sudoku(root)
-    s.pack()
-    # just a randomly generated grid for testing - no restraint on duplicates
-    s.load([[None, None, None, 3, 9, 2, None, 2, None], [None, 3, 2, None, None, 7, None, None, None], [None, 5, 8, 5, None, None, 6, None, None], [5, None, 6, None, 2, None, None, None, None], [6, None, None, None, 3, None, 9, None, 4], [None, None, 2, None, None, None, None, None, 3], [None, None, None, None, 8, None, None, None, None], [None, None, None, None, 5, 8, None, None, None], [None, 6, None, None, None, None, None, 9, None]])
-    root.mainloop()
