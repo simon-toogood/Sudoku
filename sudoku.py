@@ -174,7 +174,7 @@ class Sudoku(tk.Frame):
     def __init__(self, master, cellsize=50, fixednumbers=None, **kwargs):
         super().__init__(master, **kwargs)
         self.cellsize = cellsize
-        self.cellFrame = tk.Frame(self, bg="grey")
+        self.cellFrame = tk.Frame(self, bg="black")
         if fixednumbers is None:
             self.cells = [[Cell(self.cellFrame, (x,y), size=cellsize) for y in range(9)] for x in range(9)]
         else:
@@ -266,5 +266,4 @@ class Sudoku(tk.Frame):
             pos = pos[0], (pos[1] - 1) % 9
         elif key == "Right":
             pos = pos[0], (pos[1] + 1) % 9
-            print(self.get_box(0))
         self.cells[pos[0]][pos[1]].focus_set()
