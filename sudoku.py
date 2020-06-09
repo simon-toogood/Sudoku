@@ -1,4 +1,5 @@
 import tkinter as tk
+import random
 
 
 WHITE = "#ffffff"
@@ -20,7 +21,7 @@ MODES = [NORMAL, CORNER, CENTRE, COLOUR]
 
 
 class Cell(tk.Canvas):
-    def __init__(self, master, position, size=50, bg="white", **kwargs):
+    def __init__(self, master, position, fixed=None, size=50, bg="white", **kwargs):
         super().__init__(master, width=size, height=size, bg=bg, highlightthickness=0, **kwargs)
         self.position = position
         self.size = size
@@ -31,13 +32,26 @@ class Cell(tk.Canvas):
         del self.corners[4]
         self.cornernotes = []
         self.centrenotes = []
-        self.number = None
+        if fixed is not None:
+            self.number = fixed
+            self.fixed = True
+        else:
+            self.number = None
+            self.fixed = False
         self.bind("<1>", lambda e: self.focus_set())
         self.bind("<FocusIn>", self._focusin)
         self.bind("<FocusOut>", self._focusout)
         self._refresh()
 
-    def add_corner_note(self, num):
+    def __repr__(self):
+        return f"<Cell: n={self.number}>"
+
+    def add_corner_note(self, event):
+        if event.keysym == "BackSpace":
+            self.cornernotes = []
+            self._refresh()
+            return
+        num = event.char
         if num not in "123456789":
             return
         if num in self.cornernotes:
@@ -52,7 +66,12 @@ class Cell(tk.Canvas):
         self.cornernotes.remove(num)
         self._refresh()
 
-    def add_centre_note(self, num):
+    def add_centre_note(self, event):
+        if event.keysym == "BackSpace":
+            self.cornernotes = []
+            self._refresh()
+            return
+        num = event.char
         if num not in "123456789":
             return
         if num in self.centrenotes:
@@ -65,34 +84,35 @@ class Cell(tk.Canvas):
         self.centrenotes.remove(num)
         self._refresh()
 
-    def set_num(self, num):
-        if self.number == num:
+    def set_num(self, event):
+        num = event.char
+        if self.number == num or event.keysym == "BackSpace":
             self.number = None
         elif num in "123456789":
             self.number = num
         self._refresh()
 
-    def set_colour(self, colour):
-        if colour not in COLOURS:
+    def set_colour(self, event):
+        if event.keysym == "BackSpace":
+            self.colour = WHITE
+            self._refresh()
             return
-        self.colour = colour
+        if event.char in "123456789":
+            self.colour = COLOURS[int(event.char) - 1]
         self._refresh()
 
     def set_mode(self, mode):
         self.mode = mode
         self._set_binds()
 
-    @staticmethod
-    def _extract_colour(event):
-        if event.char not in "123456789":
-            return
-        else:
-            return COLOURS[int(event.char) - 1]
-
     def _refresh(self):
         self.delete(tk.ALL)
         if self.number is not None:
-            self.create_text(*self.centre, text=str(self.number), font=("Arial", int(self.size*3/4)))
+            if not self.fixed:
+                textcolour = "#006eba"
+            else:
+                textcolour = "black"
+            self.create_text(*self.centre, text=str(self.number), font=("Arial", int(self.size*3/4)), fill=textcolour)
         else:
             for i, n in enumerate(self.cornernotes):
                 self.create_text(*self.corners[i], text=str(n), font=("Arial", int(self.size*1/5)))
@@ -108,21 +128,26 @@ class Cell(tk.Canvas):
 
     def _set_binds(self):
         self.unbind("<Key>")
-        if self.mode == NORMAL:
-            self.bind("<Key>", lambda e: self.set_num(e.char))
-        elif self.mode == CORNER:
-            self.bind("<Key>", lambda e: self.add_corner_note(e.char))
-        elif self.mode == CENTRE:
-            self.bind("<Key>", lambda e: self.add_centre_note(e.char))
-        elif self.mode == COLOUR:
-            self.bind("<Key>", lambda e: self.set_colour(self._extract_colour(e)))
+        if not self.fixed:
+            if self.mode == NORMAL:
+                self.bind("<Key>", self.set_num)
+            elif self.mode == CORNER:
+                self.bind("<Key>", self.add_corner_note)
+            elif self.mode == CENTRE:
+                self.bind("<Key>", self.add_centre_note)
+        if self.mode == COLOUR:
+            self.bind("<Key>", self.set_colour)
 
 
 class Sudoku(tk.Frame):
-    def __init__(self, master, cellsize=50, **kwargs):
+    def __init__(self, master, cellsize=50, fixednumbers=None, **kwargs):
         super().__init__(master, **kwargs)
+        self.cellsize = cellsize
         self.cellFrame = tk.Frame(self, bg="grey")
-        self.cells = [[Cell(self.cellFrame, (x,y), size=cellsize) for y in range(9)] for x in range(9)]
+        if fixednumbers is None:
+            self.cells = [[Cell(self.cellFrame, (x,y), size=cellsize) for y in range(9)] for x in range(9)]
+        else:
+            self.load(fixednumbers)
         for r, row in enumerate(self.cells):
             for c, cell in enumerate(row):
                 if c % 3 == 0:
@@ -146,6 +171,15 @@ class Sudoku(tk.Frame):
         for i, m in enumerate(self.modebuttons):
             m.grid(row=i, column=2)
         self.master.bind("<Key>", self.move_focus)
+
+    def load(self, grid):
+        for x, row in enumerate(grid):
+            for y, num in enumerate(row):
+                if num is not None:
+                    c = self.cells[x][y]
+                    c.number = num
+                    c.fixed = True
+                    c._refresh()
 
     def get_row(self, row):
         return self.cells[row]
@@ -180,4 +214,5 @@ if __name__ == "__main__":
     root = tk.Tk()
     s = Sudoku(root)
     s.pack()
+    s.load([[random.choices(population=[None,1,2,3,4,5,6,7,8,9], weights=[20,1,1,1,1,1,1,1,1,1])[0] for x in range(9)] for y in range(9)])
     root.mainloop()
