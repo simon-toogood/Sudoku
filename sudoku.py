@@ -55,20 +55,27 @@ class Cell(tk.Canvas):
         """Compare the number in this Cell against the number in another Cell or an integer"""
         if isinstance(other, Cell):
             return self.number == other.number
+        elif other is None:
+            return self.number is None
         elif isinstance(other, int):
             return self.number == other
         else:
-            print(type(other))
-            raise NotImplementedError
+            raise NotImplementedError(f"Cannot compare {type(self)} and {type(other)}")
 
     def __lt__(self, other):
         """Compare the number in this Cell against the number in another Cell or an integer"""
         if isinstance(other, Cell):
-            return self.number < other.number
+            try:
+                return self.number < other.number
+            except TypeError:
+                # if one of the cells is None
+                return False
+        elif other is None:
+            return self.number is None
         elif isinstance(other, int):
             return self.number < other
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Cannot compare {type(self)} and {type(other)}")
 
     def add_corner_note(self, num):
         """Add the given integer to the corner notes of the Cell"""
@@ -78,11 +85,13 @@ class Cell(tk.Canvas):
             raise ValueError("Corner cells full!")
         else:
             self.cornernotes.append(num)
+        self.cornernotes.sort()
         self._refresh()
 
     def remove_corner_note(self, num):
         """Remove the given integer from the corner notes of the Cell"""
         self.cornernotes.remove(num)
+        self.cornernotes.sort()
         self._refresh()
 
     def add_centre_note(self, num):
@@ -91,11 +100,13 @@ class Cell(tk.Canvas):
             self.remove_centre_note(num)
         else:
             self.centrenotes.append(num)
+        self.centrenotes.sort()
         self._refresh()
 
     def remove_centre_note(self, num):
         """Remove the given integer from the centre notes of the Cell"""
         self.centrenotes.remove(num)
+        self.centrenotes.sort()
         self._refresh()
 
     def set_num(self, num):
@@ -158,7 +169,7 @@ class Cell(tk.Canvas):
 
 
 class Sudoku(tk.Frame):
-    """A class that contains a 9x9 grid of Cells for a classic Sudoku. Contains methods for getting regions of the grid 
+    """A class that contains a 9x9 grid of Cells for a classic Sudoku. Contains methods for getting regions of the grid
     and checking for duplicates"""
     def __init__(self, master, cellsize=50, fixednumbers=None, **kwargs):
         super().__init__(master, **kwargs)
@@ -228,9 +239,11 @@ class Sudoku(tk.Frame):
         for n in range(9):
             regions = [self.get_row(n), self.get_column(n), self.get_box(n)]
             for r in regions:
-                if check_duplicates(r):
-                    return False
-        return True
+                duplicates = check_duplicates(r)
+                if len(duplicates) != 0:
+                    for cell in r:
+                        if cell.number in duplicates:
+                            cell.config(bg=RED)
 
     def change_mode(self, mode):
         """Change the global input mode for the grid"""
@@ -265,12 +278,24 @@ def average_colours(c1, c2):
 
 
 def check_duplicates(lst):
-    """Check for duplicate values in a list. Returns a list of duplicates, or an empty list if there are none"""
+    """Check for duplicate values in a list of Cells or integers. Returns a list of duplicates values as integers,
+    or an empty list if there are none"""
     lst.sort()
+    out = []
+    prev = None
+    for item in lst:
+        if item == prev:
+            if item not in out:
+                out.append(item)
+        else:
+            prev = item
+    return [a.number for a in out]
+
 
 if __name__ == "__main__":
     root = tk.Tk()
     s = Sudoku(root)
     s.pack()
-    s.load([[random.choices(population=[None,1,2,3,4,5,6,7,8,9], weights=[20,1,1,1,1,1,1,1,1,1])[0] for x in range(9)] for y in range(9)])
+    # just a randomly generated grid for testing - no restraint on duplicates
+    s.load([[None, None, None, 3, 9, 2, None, 2, None], [None, 3, 2, None, None, 7, None, None, None], [None, 5, 8, 5, None, None, 6, None, None], [5, None, 6, None, 2, None, None, None, None], [6, None, None, None, 3, None, 9, None, 4], [None, None, 2, None, None, None, None, None, 3], [None, None, None, None, 8, None, None, None, None], [None, None, None, None, 5, 8, None, None, None], [None, 6, None, None, None, None, None, 9, None]])
     root.mainloop()
