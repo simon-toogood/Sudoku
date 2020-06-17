@@ -8,6 +8,8 @@ This app creates a Sudoku widget in tkinter that supports Snyder notation (corne
 - Add checking support for thermo sudokus
 - Add support for sandwich sudokus
 - Add checking support for sandwich sudokus
+- Add support for killer sudoku
+- Add checking support for killer sudoku
 
 ### DEPENDEDCIES:
 - Python 3.x

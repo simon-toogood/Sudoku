@@ -1,3 +1,6 @@
+import tkinter as tk
+
+
 def average_colours(c1, c2):
     """Takes the geometric average of two hex colours."""
     def hextorgb(h):
@@ -11,10 +14,10 @@ def average_colours(c1, c2):
 def check_duplicates(lst):
     """Check for duplicate values in a list of Cells or integers. Returns a list of duplicates values as integers,
     or an empty list if there are none"""
-    lst.sort()
+    l = sorted(lst)
     out = []
     prev = None
-    for item in lst:
+    for item in l:
         if item == prev:
             if item not in out:
                 out.append(item)

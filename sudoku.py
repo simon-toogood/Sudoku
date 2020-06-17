@@ -1,5 +1,6 @@
 import tkinter as tk
 import functools
+import datetime as dt
 from helpers import *
 
 
@@ -49,7 +50,9 @@ class Cell(tk.Canvas):
         self._refresh()
 
     def __repr__(self):
-        return f"<Cell: n={self.number}>"
+        return str(self.number)
+        #return f"<Cell: n={self.number}>"
+    __str__ = __repr__
 
     def __eq__(self, other):
         """Compare the number in this Cell against the number in another Cell or an integer"""
@@ -130,7 +133,7 @@ class Cell(tk.Canvas):
             self.centrenotes = []
             self.set_num(None)
             self._refresh()
-        elif event.char not in "123456789":
+        elif event.char not in list("123456789") or event.char == "":
             return
         else:
             num = int(event.char)
@@ -146,6 +149,10 @@ class Cell(tk.Canvas):
     def _refresh(self):
         """Refresh the Cell to update the Cell on screen to display changes to the notes, colour and number"""
         self.delete(tk.ALL)
+        if self.master.focus_get() == self and self.master.focus_get() is not None:
+            self.config(bg=average_colours("#fffcb5", self.colour))
+        else:
+            self.config(bg=self.colour)
         if self.number is not None:
             if not self.fixed:
                 textcolour = "#006eba"
@@ -182,28 +189,33 @@ class Sudoku(tk.Frame):
         for r, row in enumerate(self.cells):
             for c, cell in enumerate(row):
                 if c % 3 == 0:
-                    px = (3,0)
+                    px = (3, 0)
                 elif c == 8:
-                    px = (1,3)
+                    px = (1, 3)
                 else:
-                    px = (1,0)
+                    px = (1, 0)
                 if r % 3 == 0:
-                    py = (3,0)
+                    py = (3, 0)
                 elif r == 8:
-                    py = (1,3)
+                    py = (1, 3)
                 else:
-                    py = (1,0)
+                    py = (1, 0)
                 cell.grid(row=r, column=c, padx=px, pady=py)
         self.mode = tk.StringVar()
         self.mode.set(NORMAL)
         self.mode.trace("w", lambda *a: self.change_mode(self.mode.get()))
         self.modebuttons = [tk.Radiobutton(self, variable=self.mode, value=MODES[n], text=MODES[n].title()) for n in range(4)]
-        self.checkbutton = tk.Button(self, text="Check", command=lambda: print(self.check()))
-        self.cellFrame.grid(row=0, column=1, rowspan=99)
-        for i, m in enumerate(self.modebuttons):
-            m.grid(row=i, column=2)
-        self.checkbutton.grid(row=4, column=2)
+        self.checkbutton = tk.Button(self, text="Check", command=self.check, font=("Arial", 20))
+        self.timeSinceStart = 0
+        self.timer = tk.Label(self, text="00:00", font=("Arial", 24))
+        self.after(1000, self.increment_time)
+        self.cellFrame.grid(row=0, column=0, rowspan=99)
+        self.timer.grid(row=0, column=1)
+        for i, m in enumerate(self.modebuttons, start=1):
+            m.grid(row=i, column=1)
+        self.checkbutton.grid(row=5, column=1)
         self.master.bind("<Key>", self.move_focus)
+        self.master.bind("<space>", lambda e: self.change_mode())
 
     def load(self, grid):
         """Load a Sudoku grid from a 2D list of numbers (None for an empty cell). The cell numbers loaded here are
@@ -225,7 +237,8 @@ class Sudoku(tk.Frame):
 
     def get_column(self, col):
         """Get column n of the grid. Note that it starts at 0 on the left"""
-        return [row[col] for row in self.cells]
+        columns = list(zip(*self.cells))
+        return list(columns[col])
 
     def get_box(self, box):
         """Get box n of the grid. Note that it starts at 0 in the top-left and down to 8 in the bottom right"""
@@ -236,6 +249,15 @@ class Sudoku(tk.Frame):
             for c in columns:
                 out.append(self.cells[r][c])
         return out
+
+    def increment_time(self):
+        self.timeSinceStart += 1
+        hms = (self.timeSinceStart//3600 % 60, self.timeSinceStart//60 % 60, self.timeSinceStart%60)
+        if hms[0] == 0:
+            self.timer.config(text="{:02}:{:02}".format(hms[1], hms[2]))
+        else:
+            self.timer.config(text="{}:{:02}:{:02}".format(*hms))
+        self.after(1000, self.increment_time)
 
     def check(self):
         """Check for and highlight any duplicate cells in regions"""
@@ -248,11 +270,16 @@ class Sudoku(tk.Frame):
                         if cell.number in duplicates:
                             cell.config(bg=RED)
 
-    def change_mode(self, mode):
-        """Change the global input mode for the grid"""
-        for row in self.cells:
-            for cell in row:
-                cell.mode = mode
+    def change_mode(self, mode=None):
+        """Change the global input mode for the grid. If a mode is not specified, then cycle to the next mode"""
+        if mode is None:
+            new = MODES[(MODES.index(self.mode.get()) + 1) % len(MODES)]
+            self.change_mode(new)
+        else:
+            self.mode.set(mode)
+            for row in self.cells:
+                for cell in row:
+                    cell.mode = mode
 
     def move_focus(self, event):
         """Use the arrow keys to move focus around the grid"""
