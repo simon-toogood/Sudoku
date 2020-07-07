@@ -1,8 +1,13 @@
 import tkinter as tk
-import functools
+import random
 import datetime as dt
 from helpers import *
 
+BACK = "#122b42"
+LINE = "#65727d"
+TEXT = "#cccccc"
+FIXED = "#5a97cc"
+SELECT = "#648eb5"
 
 WHITE = "#ffffff"
 RED = "#ffb5b5"
@@ -22,14 +27,35 @@ COLOUR = "colour"
 MODES = [NORMAL, CORNER, CENTRE, COLOUR]
 
 
-@functools.total_ordering
+class Position:
+    def __init__(self, row, column):
+        self.row = row
+        self.column = column
+        rtrans = ((0, 1, 2), (3, 4, 5), (6, 7, 8))
+        ctrans = {(0, 1, 2): (0, 3, 6), (3, 4, 5): (1, 4, 7), (6, 7, 8): (2, 5, 8)}
+        for row in range(9):
+            for column in range(9):
+                for rt in rtrans:
+                    if self.row in rt:
+                        br = rt
+                for ct, cv in ctrans.items():
+                    if self.column in ct:
+                        bc = cv
+        self.box, = set(br) & set(bc)
+
+    def __repr__(self):
+        return f"r{self.row}c{self.column}b{self.box}"
+
+    def dcopy(self):
+        return Position(self.row, self.column)
+
+
 class Cell(tk.Canvas):
-    """A single Sudoku cell. Supports Snyder (corner) notes, centre notes and cell colouring. Can be compared against
-    other cells and integers (for example in pseudocode: Cell() == Cell(5) and Cell() == 5 are both supported. A Cell
-    can be fixed (value cannot be changed by the user) or it can be changed"""
-    def __init__(self, master, position, fixed=None, size=50, bg=WHITE):
+    """A single Sudoku cell. Supports Snyder (corner) notes, centre notes and cell colouring. Can be cast to an int for
+    comparison (eg. int(Cell)). A Cell can be fixed (value cannot be changed by the user) or it can be changed"""
+    def __init__(self, master, row, column, fixed=None, size=50, bg=BACK):
         super().__init__(master, width=size, height=size, bg=bg, highlightthickness=0)
-        self.position = position
+        self.position = Position(row, column)
         self.size = size
         self.colour = bg
         self.mode = NORMAL
@@ -50,35 +76,17 @@ class Cell(tk.Canvas):
         self._refresh()
 
     def __repr__(self):
-        return str(self.number)
-        #return f"<Cell: n={self.number}>"
+        if self.number is not None:
+            return f"<{self.number}>"
+        else:
+            return "< >"
     __str__ = __repr__
 
-    def __eq__(self, other):
-        """Compare the number in this Cell against the number in another Cell or an integer"""
-        if isinstance(other, Cell):
-            return self.number == other.number
-        elif other is None:
-            return self.number is None
-        elif isinstance(other, int):
-            return self.number == other
+    def __int__(self):
+        if self.number is None:
+            return -1
         else:
-            raise NotImplementedError(f"Cannot compare {type(self)} and {type(other)}")
-
-    def __lt__(self, other):
-        """Compare the number in this Cell against the number in another Cell or an integer"""
-        if isinstance(other, Cell):
-            try:
-                return self.number < other.number
-            except TypeError:
-                # if one of the cells is None
-                return False
-        elif other is None:
-            return self.number is None
-        elif isinstance(other, int):
-            return self.number < other
-        else:
-            raise NotImplementedError(f"Cannot compare {type(self)} and {type(other)}")
+            return int(self.number)
 
     def add_corner_note(self, num):
         """Add the given integer to the corner notes of the Cell"""
@@ -150,23 +158,23 @@ class Cell(tk.Canvas):
         """Refresh the Cell to update the Cell on screen to display changes to the notes, colour and number"""
         self.delete(tk.ALL)
         if self.master.focus_get() == self and self.master.focus_get() is not None:
-            self.config(bg=average_colours("#fffcb5", self.colour))
+            self.config(bg=average_colours(SELECT, self.colour))
         else:
             self.config(bg=self.colour)
         if self.number is not None:
             if not self.fixed:
-                textcolour = "#006eba"
+                textcolour = TEXT
             else:
-                textcolour = "black"
-            self.create_text(*self.centre, text=str(self.number), font=("Arial", int(self.size*3/4)), fill=textcolour)
+                textcolour = FIXED
+            self.create_text(*self.centre, text=str(self.number), font=("Helvetica Light", int(self.size*3/4)), fill=textcolour)
         else:
             for i, n in enumerate(self.cornernotes):
-                self.create_text(*self.corners[i], text=str(n), font=("Arial", int(self.size*1/5)))
-            self.create_text(*self.centre, text="".join(map(str, self.centrenotes)))
+                self.create_text(*self.corners[i], text=str(n), font=("Helvetica Light", int(self.size*1/4)), fill=TEXT)
+            self.create_text(*self.centre, text="".join(map(str, self.centrenotes)), fill=TEXT)
 
     def _focusin(self, _):
         """When the Cell has focus, highlight it and allow it to take keyboard input"""
-        self.config(bg=average_colours("#fffcb5", self.colour))
+        self.config(bg=average_colours(SELECT, self.colour))
         self.bind("<Key>", self._translate)
 
     def _focusout(self, _):
@@ -178,14 +186,11 @@ class Cell(tk.Canvas):
 class Sudoku(tk.Frame):
     """A class that contains a 9x9 grid of Cells for a classic Sudoku. Contains methods for getting regions of the grid
     and checking for duplicates"""
-    def __init__(self, master, cellsize=50, fixednumbers=None, **kwargs):
-        super().__init__(master, **kwargs)
+    def __init__(self, master, cellsize=50, **kwargs):
+        super().__init__(master, bg=BACK, **kwargs)
         self.cellsize = cellsize
-        self.cellFrame = tk.Frame(self, bg="black")
-        if fixednumbers is None:
-            self.cells = [[Cell(self.cellFrame, (x,y), size=cellsize) for y in range(9)] for x in range(9)]
-        else:
-            self.load(fixednumbers)
+        self.cellFrame = tk.Frame(self, bg=LINE)
+        self.cells = [[Cell(self.cellFrame, r, c, size=cellsize) for c in range(9)] for r in range(9)]
         for r, row in enumerate(self.cells):
             for c, cell in enumerate(row):
                 if c % 3 == 0:
@@ -204,51 +209,83 @@ class Sudoku(tk.Frame):
         self.mode = tk.StringVar()
         self.mode.set(NORMAL)
         self.mode.trace("w", lambda *a: self.change_mode(self.mode.get()))
-        self.modebuttons = [tk.Radiobutton(self, variable=self.mode, value=MODES[n], text=MODES[n].title()) for n in range(4)]
-        self.checkbutton = tk.Button(self, text="Check", command=self.check, font=("Arial", 20))
+        self.modebuttons = [tk.Radiobutton(self, variable=self.mode, value=MODES[n], text=MODES[n].title(), bg=BACK, fg=TEXT) for n in range(4)]
+        self.checkbutton = tk.Button(self, text="Check", command=self.check, width=7)
         self.timeSinceStart = 0
-        self.timer = tk.Label(self, text="00:00", font=("Arial", 24))
+        self.timer = tk.Label(self, text="00:00", font=("Monospace", 24), bg=BACK, fg=TEXT)
         self.after(1000, self.increment_time)
         self.cellFrame.grid(row=0, column=0, rowspan=99)
-        self.timer.grid(row=0, column=1)
+        self.timer.grid(row=0, column=1, pady=10)
         for i, m in enumerate(self.modebuttons, start=1):
             m.grid(row=i, column=1)
-        self.checkbutton.grid(row=5, column=1)
+        self.checkbutton.grid(row=5, column=1, pady=15)
         self.master.bind("<Key>", self.move_focus)
         self.master.bind("<space>", lambda e: self.change_mode())
 
-    def load(self, grid):
+    def loadarr(self, grid, empty="."):
         """Load a Sudoku grid from a 2D list of numbers (None for an empty cell). The cell numbers loaded here are
         fixed, meaning they cannot be changed by the user"""
         for x, row in enumerate(grid):
             for y, num in enumerate(row):
-                if num is not None:
+                if num != empty:
                     c = self.cells[x][y]
                     c.number = num
                     c.fixed = True
                     c._refresh()
 
+    def loadstr(self, string, empty="."):
+        """Load a Sudoku grid from a single input string of length 81. The cell numbers loaded here are
+        fixed, meaning they cannot be changed by the user"""
+        l = iter(list(string))
+        for x in range(9):
+            for y in range(9):
+                v = next(l)
+                c = self.cells[x][y]
+                if v != empty:
+                    c.number = v
+                    c.fixed = True
+                    c._refresh()
+
     def export(self):
+        """Export the current state of the grid as an array of numbers"""
         return [list(map(lambda c: c.number, r)) for r in self.cells]
 
-    def get_row(self, row):
-        """Get row n of the grid. Note that it starts at 0 on the left"""
-        return self.cells[row]
+    def rows(self, values=False):
+        if values:
+            yield from [[c.number for c in r] for r in self.rows()]
+        else:
+            yield from self.cells
 
-    def get_column(self, col):
-        """Get column n of the grid. Note that it starts at 0 on the left"""
+    def get_row(self, row, values=False):
+        return list(self.rows(values=values))[row]
+
+    def columns(self, values=False):
         columns = list(zip(*self.cells))
-        return list(columns[col])
+        if values:
+            yield from [[c.number for c in r] for r in self.columns()]
+        else:
+            yield from columns
 
-    def get_box(self, box):
-        """Get box n of the grid. Note that it starts at 0 in the top-left and down to 8 in the bottom right"""
-        trans = [[0,1,2], [3,4,5], [6,7,8]]
-        rows, columns = trans[box%3], trans[box//3]
-        out = []
-        for r in rows:
-            for c in columns:
-                out.append(self.cells[r][c])
-        return out
+    def get_column(self, column, values=False):
+        return list(list(self.columns(values=values))[column])
+
+    def boxes(self, values=False):
+        for box in range(9):
+            out = []
+            for row in self.cells:
+                for cell in row:
+                    if cell.position.box == box:
+                        if values:
+                            out.append(cell.number)
+                        else:
+                            out.append(cell)
+            yield out
+
+    def get_box(self, box, values=False):
+        return list(self.boxes(values=values))[box]
+
+    def find(self, position):
+        return self.cells[position.row][position.column]
 
     def increment_time(self):
         self.timeSinceStart += 1
@@ -267,7 +304,7 @@ class Sudoku(tk.Frame):
                 duplicates = check_duplicates(r)
                 if len(duplicates) != 0:
                     for cell in r:
-                        if cell.number in duplicates:
+                        if cell.number in duplicates or cell.number is None:
                             cell.config(bg=RED)
 
     def change_mode(self, mode=None):
@@ -283,14 +320,15 @@ class Sudoku(tk.Frame):
 
     def move_focus(self, event):
         """Use the arrow keys to move focus around the grid"""
-        pos = self.focus_get().position
+        pos = self.focus_get().position.dcopy()
         key = event.keysym
         if key == "Up":
-            pos = (pos[0] - 1) % 9, pos[1]
+            pos.row = (pos.row - 1) % 9
         elif key == "Down":
-            pos = (pos[0] + 1) % 9, pos[1]
+            pos.row = (pos.row + 1) % 9
         elif key == "Left":
-            pos = pos[0], (pos[1] - 1) % 9
+            pos.column = (pos.column - 1) % 9
         elif key == "Right":
-            pos = pos[0], (pos[1] + 1) % 9
-        self.cells[pos[0]][pos[1]].focus_set()
+            pos.column = (pos.column + 1) % 9
+        self.find(pos).focus_set()
+

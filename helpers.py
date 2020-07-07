@@ -1,4 +1,5 @@
 import tkinter as tk
+import sudoku
 
 
 def average_colours(c1, c2):
@@ -12,9 +13,9 @@ def average_colours(c1, c2):
 
 
 def check_duplicates(lst):
-    """Check for duplicate values in a list of Cells or integers. Returns a list of duplicates values as integers,
+    """Check for duplicate values in a list of integers. Returns a list of duplicates values as integers,
     or an empty list if there are none"""
-    l = sorted(lst)
+    l = sorted(map(int, lst))
     out = []
     prev = None
     for item in l:
@@ -23,4 +24,4 @@ def check_duplicates(lst):
                 out.append(item)
         else:
             prev = item
-    return [a.number for a in out]
+    return out
